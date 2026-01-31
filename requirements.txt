@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+google-cloud-firestore
+google-auth
+google-generativeai
+google-adk
+firebase-admin
