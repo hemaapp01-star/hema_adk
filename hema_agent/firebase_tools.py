@@ -6,19 +6,17 @@ Provides tools for:
 - Response management in requests/{requestId}/responses subcollection
 - Intervention messaging to users/{uid}/messages
 - Provider location retrieval
+
+Uses lazy imports to avoid dependency issues during Vertex AI deployment.
 """
 
 import os
 import logging
 import requests
 from typing import Dict, List, Optional
-from firebase_admin import firestore
 from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
-
-# Initialize Firestore client
-db = firestore.client()
 
 
 def get_provider_location(provider_id: str) -> Dict:
@@ -37,7 +35,10 @@ def get_provider_location(provider_id: str) -> Dict:
             }
         }
     """
+    from firebase_admin import firestore
+    
     try:
+        db = firestore.client()
         doc = db.collection("healthcare_providers").document(provider_id).get()
         
         if not doc.exists:
@@ -132,7 +133,10 @@ def update_matched_donors(
     Returns:
         True if successful, False otherwise
     """
+    from firebase_admin import firestore
+    
     try:
+        db = firestore.client()
         request_ref = db.collection("healthcare_providers") \
             .document(provider_id) \
             .collection("requests") \
@@ -175,7 +179,10 @@ def read_donor_responses(provider_id: str, request_id: str) -> Dict:
             ...
         }
     """
+    from firebase_admin import firestore
+    
     try:
+        db = firestore.client()
         responses_ref = db.collection("healthcare_providers") \
             .document(provider_id) \
             .collection("requests") \
@@ -209,7 +216,10 @@ def send_intervention_message(donor_uid: str, message: str) -> bool:
     Returns:
         True if successful, False otherwise
     """
+    from firebase_admin import firestore
+    
     try:
+        db = firestore.client()
         messages_ref = db.collection("users") \
             .document(donor_uid) \
             .collection("messages")
@@ -246,7 +256,10 @@ def update_donor_status(
     Returns:
         True if successful, False otherwise
     """
+    from firebase_admin import firestore
+    
     try:
+        db = firestore.client()
         response_ref = db.collection("healthcare_providers") \
             .document(provider_id) \
             .collection("requests") \
@@ -286,7 +299,10 @@ def store_donor_message(
     Returns:
         True if successful, False otherwise
     """
+    from firebase_admin import firestore
+    
     try:
+        db = firestore.client()
         # Update responses subcollection
         response_ref = db.collection("healthcare_providers") \
             .document(provider_id) \
@@ -325,7 +341,10 @@ def get_donor_profile(donor_uid: str) -> Optional[Dict]:
     Returns:
         User document dict or None if not found
     """
+    from firebase_admin import firestore
+    
     try:
+        db = firestore.client()
         doc = db.collection("users").document(donor_uid).get()
         
         if not doc.exists:
@@ -402,7 +421,10 @@ def get_request_details(provider_id: str, request_id: str) -> Optional[Dict]:
     Returns:
         Request document dict or None if not found
     """
+    from firebase_admin import firestore
+    
     try:
+        db = firestore.client()
         doc = db.collection("healthcare_providers") \
             .document(provider_id) \
             .collection("requests") \

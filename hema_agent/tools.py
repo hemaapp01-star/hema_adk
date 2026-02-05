@@ -1,7 +1,8 @@
 import logging
-import firebase_admin
-from firebase_admin import firestore
 from typing import Optional
+
+# Set up logging to capture details in Cloud Run
+logger = logging.getLogger(__name__)
 
 # Set up logging to capture details in Cloud Run
 logger = logging.getLogger(__name__)
@@ -10,6 +11,10 @@ def notify_hospital_subagent(donor_id: str, request_id: str, provider_id: str) -
     """
     Alerts the healthcare provider by adding the donor to the matchedDonors sub-collection.
     """
+    # Lazy import to avoid dependency issues during Vertex AI deployment
+    import firebase_admin
+    from firebase_admin import firestore
+    
     # 1. Debug Log: See what the agent is actually sending
     logger.info(f"DEBUG: notify_hospital_subagent called with donor_id={donor_id}, request_id={request_id}, provider_id={provider_id}")
     
