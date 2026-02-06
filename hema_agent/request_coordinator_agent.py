@@ -22,7 +22,8 @@ from .firebase_tools import (
     update_matched_donors,
     read_donor_responses,
     send_intervention_message,
-    get_request_details
+    get_request_details,
+    send_status_update
 )
 
 logger = logging.getLogger(__name__)
@@ -61,6 +62,13 @@ class RequestCoordinatorAgent:
         try:
             logger.info(f"Starting coordination for request {self.request_id}")
             
+            # Send initial status update
+            send_status_update(
+                self.provider_id,
+                self.request_id,
+                "Starting coordination for blood request. Searching for compatible donors..."
+            )
+            
             # Phase 1: Search donors
             provider_geo = get_provider_location(self.provider_id)
             if not provider_geo:
@@ -70,7 +78,19 @@ class RequestCoordinatorAgent:
             donors = await self.search_donors(provider_geo)
             if not donors:
                 logger.warning("No donors found in initial search")
+                send_status_update(
+                    self.provider_id,
+                    self.request_id,
+                    "No compatible donors found in the initial search area. Please check back later."
+                )
                 return
+            
+            # Send search results update
+            send_status_update(
+                self.provider_id,
+                self.request_id,
+                f"Found {len(donors)} potential donors within {self.search_radius}km radius. Analyzing and ranking by likelihood to donate."
+            )
             
             # Phase 2: Filter and rank
             ranked_donors = await self.filter_rank_donors(donors)
@@ -157,6 +177,13 @@ class RequestCoordinatorAgent:
         if success:
             self.matched_donors.extend(donor_uids)
             logger.info(f"Successfully matched {len(donor_uids)} donors")
+            
+            # Send status update about matched donors
+            send_status_update(
+                self.provider_id,
+                self.request_id,
+                f"Successfully contacted {len(donor_uids)} matched donors. Notifications sent via FCM."
+            )
         else:
             logger.error("Failed to update matched donors")
     
@@ -194,9 +221,26 @@ class RequestCoordinatorAgent:
                 
                 logger.info(f"Progress: {willing_count}/{self.request['quantity']} donors willing")
                 
+                # Send progress update if there are willing donors
+                if willing_count > 0:
+                    responded_count = sum(
+                        1 for r in responses.values()
+                        if r.get("status") in ["willing", "declined", "responded"]
+                    )
+                    send_status_update(
+                        self.provider_id,
+                        self.request_id,
+                        f"Progress update: {willing_count} donor(s) have confirmed they are available and willing to donate. {responded_count} total responses received."
+                    )
+                
                 # Check if request fulfilled
                 if willing_count >= self.request["quantity"]:
                     logger.info("Request fulfilled!")
+                    send_status_update(
+                        self.provider_id,
+                        self.request_id,
+                        f"Request fulfilled! {willing_count} donors confirmed and are on their way."
+                    )
                     break
                 
                 # Check if need to expand search
@@ -224,6 +268,13 @@ class RequestCoordinatorAgent:
         self.search_radius += 25  # Increase by 25km
         logger.info(f"Expanding search to {self.search_radius}km")
         
+        # Send expansion status update
+        send_status_update(
+            self.provider_id,
+            self.request_id,
+            f"Expanding search radius to {self.search_radius}km to find additional donors."
+        )
+        
         provider_geo = get_provider_location(self.provider_id)
         if not provider_geo:
             logger.error("Failed to get provider location for expansion")
@@ -239,10 +290,20 @@ class RequestCoordinatorAgent:
         
         if new_donors:
             logger.info(f"Found {len(new_donors)} new donors in expanded search")
+            send_status_update(
+                self.provider_id,
+                self.request_id,
+                f"Found {len(new_donors)} additional donors in expanded search area. Contacting top candidates."
+            )
             ranked = await self.filter_rank_donors(new_donors)
             await self.match_donors(ranked[:5])  # Match top 5 new donors
         else:
             logger.warning("No new donors found in expanded search")
+            send_status_update(
+                self.provider_id,
+                self.request_id,
+                f"No additional donors found within {self.search_radius}km radius. Continuing to monitor current matches."
+            )
     
     async def check_for_interventions(self, responses: Dict):
         """

@@ -442,3 +442,46 @@ def get_request_details(provider_id: str, request_id: str) -> Optional[Dict]:
     except Exception as e:
         logger.error(f"Error getting request details: {str(e)}")
         return None
+
+
+def send_status_update(
+    provider_id: str,
+    request_id: str,
+    message: str
+) -> bool:
+    """
+    Send status update to healthcare provider's request status subcollection.
+    
+    This allows the agent to communicate progress updates to the healthcare provider
+    about the blood request coordination process.
+    
+    Args:
+        provider_id: Healthcare provider ID
+        request_id: Blood request ID
+        message: Status update message (e.g., "I have successfully contacted 5 matched donors. 2 have confirmed they are available.")
+        
+    Returns:
+        True if successful, False otherwise
+    """
+    from firebase_admin import firestore
+    
+    try:
+        db = firestore.client()
+        status_ref = db.collection("healthcare_providers") \
+            .document(provider_id) \
+            .collection("requests") \
+            .document(request_id) \
+            .collection("status")
+        
+        status_ref.add({
+            "content": message,
+            "role": "hema",
+            "date": firestore.SERVER_TIMESTAMP
+        })
+        
+        logger.info(f"Sent status update to provider {provider_id} for request {request_id}: {message}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error sending status update: {str(e)}")
+        return False
