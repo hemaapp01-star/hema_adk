@@ -83,7 +83,7 @@ Remember: You initiated this conversation by sending them a notification. Frame 
     
     return Agent(
         name="donor_chat_agent",
-        model="gemini-2.0-flash-exp",
+        model="gemini-3-pro-preview",
         instruction=instructions,
         description="Handles conversations with donors about blood donation requests, assesses availability, and coordinates hospital notifications.",
         tools=[notify_hospital_subagent]

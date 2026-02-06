@@ -70,7 +70,7 @@ This JSON array will be parsed by the Firebase Cloud Function to notify the sele
     
     return Agent(
         name="donor_filter_agent",
-        model="gemini-2.0-flash-exp",
+        model="gemini-3-pro-preview",
         instruction=instructions,
         description="Analyzes donor data and filters for those most likely to donate based on history, eligibility, and availability.",
         output_key="filtered_donors"  # Automatically saves output to session state

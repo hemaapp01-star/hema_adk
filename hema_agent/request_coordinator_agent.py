@@ -147,7 +147,7 @@ class RequestCoordinatorAgent:
         
         filter_agent = Agent(
             name="donor_filter",
-            model="gemini-2.0-flash-exp",
+            model="gemini-3-pro-preview",
             instruction=filter_instructions,
             thinking_config=types.ThinkingConfig(thinking_level="deep")
         )

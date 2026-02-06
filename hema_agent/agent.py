@@ -57,7 +57,7 @@ When you receive donor filtering requests from the system, pass the donor_ids li
     
     return Agent(
         name="hema_orchestrator",
-        model="gemini-2.0-flash-exp",
+        model="gemini-3-pro-preview",
         instruction=orchestrator_instructions,
         description="Orchestrates blood donation operations by routing to specialized donor chat and donor filter agents.",
         sub_agents=[donor_chat, donor_filter]
@@ -73,7 +73,7 @@ def create_hema_agent(context: Dict[str, Any]) -> Agent:
 # Legacy root agent for backwards compatibility
 root_agent = Agent(
     name="hema_agent",
-    model="gemini-2.0-flash-exp",
+    model="gemini-3-pro-preview",
     instruction="You are Hema, a blood donation coordinator. Context will be provided.",
     tools=[notify_hospital_subagent]
 )

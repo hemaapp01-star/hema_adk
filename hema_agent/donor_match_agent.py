@@ -72,7 +72,7 @@ def create_donor_match_agent(
     
     return Agent(
         name=f"donor_match_agent_{donor_uid}",
-        model="gemini-2.0-flash-exp",
+        model="gemini-3-pro-preview",
         instruction=instructions,
         tools=tools,
         thinking_config=types.ThinkingConfig(thinking_level="medium")
