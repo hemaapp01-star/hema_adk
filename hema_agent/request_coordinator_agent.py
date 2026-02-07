@@ -18,10 +18,11 @@ from google.genai import types
 
 from .firebase_tools import (
     get_provider_location,
-    call_donor_search,
-    update_matched_donors,
+    search_donors_http,
+    broadcast_push_notification,
+    send_user_message_http,
+    update_request_http,
     read_donor_responses,
-    send_intervention_message,
     get_request_details,
     send_status_update
 )
@@ -108,21 +109,25 @@ class RequestCoordinatorAgent:
     
     async def search_donors(self, provider_geo: Dict) -> List[Dict]:
         """
-        Call onBloodRequestCreated Cloud Function for donor search.
+        Search for donors using the searchDonors HTTP Cloud Function.
         
         Args:
-            provider_geo: Provider's geo location
+            provider_geo: Provider's geo location with geopoint
             
         Returns:
-            List of donor dicts with uid, bloodGroup, distance_km, etc.
+            List of donor dicts with uid, fcmToken, distance, bloodGroup, etc.
         """
         logger.info(f"Searching donors within {self.search_radius}km")
         
-        result = await call_donor_search(
-            provider_geo=provider_geo,
-            blood_types=self.request["bloodGroup"],
+        # Extract center coordinates from provider geo
+        geopoint = provider_geo.get("geopoint", {})
+        center = [geopoint.get("latitude"), geopoint.get("longitude")]
+        
+        result = await search_donors_http(
+            center=center,
             radius_km=self.search_radius,
-            time_period="both"  # Search both daytime and nighttime
+            blood_groups=self.request["bloodGroup"] if isinstance(self.request["bloodGroup"], list) else [self.request["bloodGroup"]],
+            limit=50
         )
         
         donors = result.get("donors", [])
@@ -161,31 +166,49 @@ class RequestCoordinatorAgent:
     
     async def match_donors(self, donor_uids: List[str]):
         """
-        Update matchedDonors in Firebase (triggers FCM).
+        Send FCM notifications to matched donors using broadcastPushNotification.
         
         Args:
             donor_uids: List of donor UIDs to match
         """
         logger.info(f"Matching {len(donor_uids)} donors")
         
-        success = update_matched_donors(
-            provider_id=self.provider_id,
-            request_id=self.request_id,
-            donor_uids=donor_uids
+        # Prepare notification content
+        org_name = self.request.get("organisationName", "A hospital")
+        blood_group = self.request.get("bloodGroup")
+        urgency = self.request.get("urgency", "medium")
+        
+        title = f"Urgent: {org_name} needs {blood_group} blood"
+        body = f"Your help is needed! {org_name} has an {urgency} priority request for {blood_group} blood donation."
+        
+        # Send notifications via HTTP Cloud Function
+        result = broadcast_push_notification(
+            user_ids=donor_uids,
+            title=title,
+            body=body,
+            data={
+                "requestId": self.request_id,
+                "providerId": self.provider_id,
+                "bloodGroup": blood_group,
+                "urgency": urgency
+            }
         )
         
-        if success:
+        success_count = result.get("successCount", 0)
+        failure_count = result.get("failureCount", 0)
+        
+        if success_count > 0:
             self.matched_donors.extend(donor_uids)
-            logger.info(f"Successfully matched {len(donor_uids)} donors")
+            logger.info(f"Successfully notified {success_count} donors ({failure_count} failed)")
             
             # Send status update about matched donors
             send_status_update(
                 self.provider_id,
                 self.request_id,
-                f"Successfully contacted {len(donor_uids)} matched donors. Notifications sent via FCM."
+                f"Successfully contacted {success_count} matched donors. Notifications sent via FCM."
             )
         else:
-            logger.error("Failed to update matched donors")
+            logger.error(f"Failed to notify donors: {failure_count} failures")
     
     async def monitor_donor_responses(self):
         """
@@ -236,6 +259,14 @@ class RequestCoordinatorAgent:
                 # Check if request fulfilled
                 if willing_count >= self.request["quantity"]:
                     logger.info("Request fulfilled!")
+                    
+                    # Update request to mark as fulfilled
+                    update_request_http(
+                        self.provider_id,
+                        self.request_id,
+                        {"foundDonors": True, "status": "fulfilled"}
+                    )
+                    
                     send_status_update(
                         self.provider_id,
                         self.request_id,

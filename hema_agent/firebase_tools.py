@@ -54,6 +54,203 @@ def get_provider_location(provider_id: str) -> Dict:
         return None
 
 
+# ============================================================================
+# NEW HTTP CLOUD FUNCTIONS
+# ============================================================================
+
+async def search_donors_http(
+    center: List[float],
+    radius_km: int,
+    blood_groups: List[str],
+    limit: int = 50
+) -> Dict:
+    """
+    Search for donors using the searchDonors Cloud Function.
+    
+    Args:
+        center: [latitude, longitude] coordinates
+        radius_km: Search radius in kilometers
+        blood_groups: List of compatible blood types
+        limit: Maximum number of donors to return
+        
+    Returns:
+        {
+            "donors": [
+                {
+                    "uid": str,
+                    "fcmToken": str,
+                    "distance": float,
+                    "bloodGroup": str,
+                    ...
+                }
+            ]
+        }
+    """
+    try:
+        function_url = "https://searchdonors-mtqk6em7pa-uc.a.run.app"
+        
+        payload = {
+            "center": center,
+            "radiusInKm": radius_km,
+            "bloodGroups": blood_groups,
+            "limit": limit
+        }
+        
+        logger.info(f"Searching donors: {len(blood_groups)} blood types, {radius_km}km radius")
+        
+        response = requests.post(function_url, json=payload, timeout=30)
+        response.raise_for_status()
+        
+        result = response.json()
+        logger.info(f"Found {len(result.get('donors', []))} donors")
+        
+        return result
+        
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error calling searchDonors function: {str(e)}")
+        return {"donors": []}
+    except Exception as e:
+        logger.error(f"Unexpected error in donor search: {str(e)}")
+        return {"donors": []}
+
+
+def broadcast_push_notification(
+    user_ids: List[str],
+    title: str,
+    body: str,
+    data: Dict = None
+) -> Dict:
+    """
+    Send FCM notifications to multiple users via broadcastPushNotification Cloud Function.
+    
+    Args:
+        user_ids: List of user IDs to send notifications to
+        title: Notification title
+        body: Notification body text
+        data: Optional data payload
+        
+    Returns:
+        {
+            "successCount": int,
+            "failureCount": int,
+            "failedUserIds": [str]
+        }
+    """
+    try:
+        function_url = "https://broadcastpushnotification-mtqk6em7pa-uc.a.run.app"
+        
+        payload = {
+            "userIds": user_ids,
+            "notification": {
+                "title": title,
+                "body": body
+            },
+            "data": data or {}
+        }
+        
+        logger.info(f"Broadcasting notification to {len(user_ids)} users")
+        
+        response = requests.post(function_url, json=payload, timeout=30)
+        response.raise_for_status()
+        
+        result = response.json()
+        logger.info(f"Notification sent: {result.get('successCount', 0)} success, {result.get('failureCount', 0)} failed")
+        
+        return result
+        
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error calling broadcastPushNotification function: {str(e)}")
+        return {"successCount": 0, "failureCount": len(user_ids), "failedUserIds": user_ids}
+    except Exception as e:
+        logger.error(f"Unexpected error in broadcast notification: {str(e)}")
+        return {"successCount": 0, "failureCount": len(user_ids), "failedUserIds": user_ids}
+
+
+def send_user_message_http(
+    uid: str,
+    message: Dict
+) -> bool:
+    """
+    Send a message to a user's messages subcollection via sendUserMessage Cloud Function.
+    
+    Args:
+        uid: User ID
+        message: Message object with {content, role, timestamp}
+        
+    Returns:
+        True if successful, False otherwise
+    """
+    try:
+        function_url = "https://sendusermessage-mtqk6em7pa-uc.a.run.app"
+        
+        payload = {
+            "uid": uid,
+            "message": message
+        }
+        
+        logger.info(f"Sending message to user {uid}")
+        
+        response = requests.post(function_url, json=payload, timeout=30)
+        response.raise_for_status()
+        
+        logger.info(f"Message sent successfully to user {uid}")
+        return True
+        
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error calling sendUserMessage function: {str(e)}")
+        return False
+    except Exception as e:
+        logger.error(f"Unexpected error sending user message: {str(e)}")
+        return False
+
+
+def update_request_http(
+    provider_id: str,
+    request_id: str,
+    update_data: Dict
+) -> bool:
+    """
+    Update blood request document via updateRequest Cloud Function.
+    
+    Args:
+        provider_id: Healthcare provider ID
+        request_id: Blood request ID
+        update_data: Dictionary of fields to update (e.g., {"foundDonors": True})
+        
+    Returns:
+        True if successful, False otherwise
+    """
+    try:
+        function_url = "https://updaterequest-mtqk6em7pa-uc.a.run.app"
+        
+        payload = {
+            "providerId": provider_id,
+            "requestId": request_id,
+            "updateData": update_data
+        }
+        
+        logger.info(f"Updating request {request_id} with data: {update_data}")
+        
+        response = requests.post(function_url, json=payload, timeout=30)
+        response.raise_for_status()
+        
+        logger.info(f"Request {request_id} updated successfully")
+        return True
+        
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error calling updateRequest function: {str(e)}")
+        return False
+    except Exception as e:
+        logger.error(f"Unexpected error updating request: {str(e)}")
+        return False
+
+
+# ============================================================================
+# LEGACY FUNCTIONS (kept for backward compatibility)
+# ============================================================================
+
+
+
 async def call_donor_search(
     provider_geo: Dict,
     blood_types: List[str],
