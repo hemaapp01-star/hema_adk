@@ -6,8 +6,12 @@ node_modules/
 **/node_modules/
 hema_agent/hema firebase/
 
+# ADK temporary deployment folders
+hema_adk_tmp*/
+
 # Python cache
 __pycache__/
+**/__pycache__/
 *.pyc
 *.pyo
 *.pyd
