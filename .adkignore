@@ -1,0 +1,64 @@
+# ADK Ignore File
+# Exclude files and directories from Agent Engine deployment
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Git
+.git/
+.gitignore
+
+# Documentation and markdown (not needed at runtime)
+*.md
+DEPLOYMENT.md
+SESSION_TRACKING.md
+DEPLOYMENT_INSTRUCTIONS.md
+
+# Deployment scripts (not needed at runtime)
+deploy.sh
+deploy_reasoning_engine.py
+check_session_status.py
+
+# Service account keys (use Application Default Credentials instead)
+*.json
+hema-key.json
+
+# Cloud Run specific files (not needed for Agent Engine)
+main.py
+Dockerfile
+.dockerignore
+
+# Test files
+test_*.py
+*_test.py
+tests/
+
+# Logs
+*.log
+
+# Environment files
+.env.local
+.env.*.local
