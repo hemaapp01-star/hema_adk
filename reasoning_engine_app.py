@@ -15,6 +15,10 @@ from google.adk.sessions import VertexAiSessionService
 from google.adk.runners import Runner
 from google.genai import types
 
+# Setup logging first
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 # Initialize Firebase - conditional for deployment vs runtime
 try:
     if not firebase_admin._apps:
@@ -31,9 +35,6 @@ except Exception as e:
     logger.warning(f"Firebase initialization deferred: {e}")
 
 from hema_agent.request_coordinator_agent import create_request_coordinator_agent
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 # Get configuration from environment
 PROJECT_ID = os.environ.get("GOOGLE_CLOUD_PROJECT", "hema-63b81")
