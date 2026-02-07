@@ -29,10 +29,10 @@ def deploy_reasoning_engine():
     try:
         print(f"\n🔨 Creating new Reasoning Engine...")
         
-        # Create new Reasoning Engine
+        # Create new Reasoning Engine with minimal config
+        # The agent app will be deployed with its dependencies
         agent_engine = client.agent_engines.create(
             agent=app,
-            display_name="Hema Blood Request Coordinator",
             requirements=[
                 "google-cloud-aiplatform[adk,agent_engine]>=1.75.0",
                 "google-cloud-firestore>=2.19.0",
