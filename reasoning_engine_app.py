@@ -15,10 +15,20 @@ from google.adk.sessions import VertexAiSessionService
 from google.adk.runners import Runner
 from google.genai import types
 
-# Initialize Firebase
-if not firebase_admin._apps:
-    cred = credentials.Certificate("hema-key.json")
-    firebase_admin.initialize_app(cred)
+# Initialize Firebase - conditional for deployment vs runtime
+try:
+    if not firebase_admin._apps:
+        # Try to use service account key if available
+        if os.path.exists("hema-key.json"):
+            cred = credentials.Certificate("hema-key.json")
+            firebase_admin.initialize_app(cred)
+        else:
+            # Use Application Default Credentials (works on Vertex AI)
+            firebase_admin.initialize_app()
+            logger.info("Using Application Default Credentials for Firebase")
+except Exception as e:
+    # During deployment, Firebase may not be needed
+    logger.warning(f"Firebase initialization deferred: {e}")
 
 from hema_agent.request_coordinator_agent import create_request_coordinator_agent
 
