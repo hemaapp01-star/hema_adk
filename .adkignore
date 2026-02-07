@@ -1,6 +1,11 @@
 # ADK Ignore File
 # Exclude files and directories from Agent Engine deployment
 
+# CRITICAL: Exclude Node.js dependencies (huge!)
+node_modules/
+**/node_modules/
+hema_agent/hema firebase/
+
 # Python cache
 __pycache__/
 *.pyc

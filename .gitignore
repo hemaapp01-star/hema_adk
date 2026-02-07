@@ -80,3 +80,6 @@ Thumbs.db
 # Credentials and secrets
 *.json
 .env
+
+# Firebase functions directory (should not be in ADK repo)
+hema_agent/hema firebase/
