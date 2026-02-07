@@ -30,9 +30,11 @@ def deploy_reasoning_engine():
         print(f"\n🔨 Creating new Reasoning Engine...")
         print(f"📦 Using staging bucket: {STAGING_BUCKET}")
         
-        # Create new Reasoning Engine - pass only the agent
-        # Dependencies are defined in requirements.txt
-        agent_engine = client.agent_engines.create(agent=app)
+        # Create new Reasoning Engine
+        agent_engine = client.agent_engines.create(
+            agent=app,
+            staging_bucket=STAGING_BUCKET
+        )
         
         # Extract the agent engine ID
         agent_engine_id = agent_engine.api_resource.name.split("/")[-1]
