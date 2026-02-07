@@ -28,19 +28,11 @@ def deploy_reasoning_engine():
     
     try:
         print(f"\n🔨 Creating new Reasoning Engine...")
+        print(f"📦 Using staging bucket: {STAGING_BUCKET}")
         
-        # Create new Reasoning Engine with minimal config
-        # The agent app will be deployed with its dependencies
-        agent_engine = client.agent_engines.create(
-            agent=app,
-            requirements=[
-                "google-cloud-aiplatform[adk,agent_engine]>=1.75.0",
-                "google-cloud-firestore>=2.19.0",
-                "firebase-admin>=6.5.0",
-                "requests>=2.32.0",
-            ],
-            staging_bucket=STAGING_BUCKET,
-        )
+        # Create new Reasoning Engine - pass only the agent
+        # Dependencies are defined in requirements.txt
+        agent_engine = client.agent_engines.create(agent=app)
         
         # Extract the agent engine ID
         agent_engine_id = agent_engine.api_resource.name.split("/")[-1]
