@@ -1,8 +1,8 @@
 fastapi
 uvicorn
-google-cloud-firestore
+google-cloud-firestore>=2.19.0
 google-auth
 google-generativeai
-google-adk
-firebase-admin
-requests
+google-cloud-aiplatform[adk,agent_engine]>=1.75.0
+firebase-admin>=6.5.0
+requests>=2.32.0
