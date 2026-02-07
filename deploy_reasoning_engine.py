@@ -30,23 +30,19 @@ def deploy_reasoning_engine():
     
     try:
         # Update existing Reasoning Engine
-        resource_name = f"projects/{PROJECT_ID}/locations/{LOCATION}/reasoningEngines/{AGENT_ENGINE_ID}"
-        
-        print(f"\n📦 Updating Reasoning Engine: {resource_name}")
+        print(f"\n📦 Updating Reasoning Engine ID: {AGENT_ENGINE_ID}")
         
         client.agent_engines.update(
-            resource_name=resource_name,
+            agent_engine_id=AGENT_ENGINE_ID,
             agent=app,  # The HemaReasoningEngineApp instance
-            config={
-                "display_name": "Hema Blood Request Coordinator",
-                "requirements": [
-                    "google-cloud-aiplatform[adk,agent_engine]>=1.75.0",
-                    "google-cloud-firestore>=2.19.0",
-                    "firebase-admin>=6.5.0",
-                    "requests>=2.32.0",
-                ],
-                "staging_bucket": STAGING_BUCKET,
-            },
+            display_name="Hema Blood Request Coordinator",
+            requirements=[
+                "google-cloud-aiplatform[adk,agent_engine]>=1.75.0",
+                "google-cloud-firestore>=2.19.0",
+                "firebase-admin>=6.5.0",
+                "requests>=2.32.0",
+            ],
+            staging_bucket=STAGING_BUCKET,
         )
         
         print("\n✅ Reasoning Engine updated successfully!")
