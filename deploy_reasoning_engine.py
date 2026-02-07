@@ -29,12 +29,20 @@ def deploy_reasoning_engine():
     print(f"🆔 Agent Engine ID: {AGENT_ENGINE_ID}")
     
     try:
-        # Update existing Reasoning Engine
-        print(f"\n📦 Updating Reasoning Engine ID: {AGENT_ENGINE_ID}")
+        # Get the existing Reasoning Engine
+        print(f"\n📦 Getting Reasoning Engine ID: {AGENT_ENGINE_ID}")
         
-        client.agent_engines.update(
-            agent_engine_id=AGENT_ENGINE_ID,
-            agent=app,  # The HemaReasoningEngineApp instance
+        agent_engine = client.agent_engines.get(
+            agent_engine_id=AGENT_ENGINE_ID
+        )
+        
+        print(f"✅ Found: {agent_engine.display_name}")
+        print(f"\n🔄 Updating with new code...")
+        
+        # Update the agent engine
+        updated_engine = client.agent_engines.update(
+            agent_engine=agent_engine,
+            agent=app,
             display_name="Hema Blood Request Coordinator",
             requirements=[
                 "google-cloud-aiplatform[adk,agent_engine]>=1.75.0",
