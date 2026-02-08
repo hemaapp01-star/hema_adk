@@ -79,34 +79,37 @@ class HemaReasoningEngine:
         """Initialize the Reasoning Engine."""
         logger.info("Initializing Hema Reasoning Engine")
     
-    def query(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+    def query(self, input: Dict[str, Any]) -> Dict[str, Any]:
         """
         Main query method called by Vertex AI Reasoning Engine.
+        
+        CRITICAL: The Reasoning Engine API expects:
+        - Input parameter named 'input' (not **kwargs)
+        - Return value wrapped in 'output' key
         
         This is a synchronous method that handles blood request coordination.
         It creates a session, runs the coordinator agent, and returns the result.
         
         Args:
-            input_data: Dictionary containing:
-                - provider_id: Healthcare provider ID
-                - request_id: Blood request ID
-                - request: Blood request data
+            input: Dictionary containing provider_id, request_id, and request data
                 
         Returns:
-            Dictionary with status and session information
+            Dictionary with 'output' key containing status and session information
         """
         try:
-            logger.info(f"Received query with input: {input_data}")
+            logger.info(f"Received query with input: {input}")
             
-            # Extract parameters
-            provider_id = input_data.get("provider_id")
-            request_id = input_data.get("request_id")
-            request_data = input_data.get("request")
+            # Extract parameters directly from input
+            provider_id = input.get("provider_id")
+            request_id = input.get("request_id")
+            request_data = input.get("request")
             
             if not all([provider_id, request_id, request_data]):
                 return {
-                    "error": "Missing required fields: provider_id, request_id, request",
-                    "status": "failed"
+                    "output": {
+                        "error": "Missing required fields: provider_id, request_id, request",
+                        "status": "failed"
+                    }
                 }
             
             # Initialize session service
@@ -181,13 +184,16 @@ class HemaReasoningEngine:
                         response_text = event.content.parts[0].text
                         logger.info(f"Agent response: {response_text}")
                 
+                # ✅ CRITICAL: Return with 'output' wrapper for Reasoning Engine
                 return {
-                    "status": "acknowledged",
-                    "session_id": session_id,
-                    "user_id": user_id,
-                    "provider_id": provider_id,
-                    "request_id": request_id,
-                    "message": response_text or "Blood request received and acknowledged"
+                    "output": {
+                        "status": "acknowledged",
+                        "session_id": session_id,
+                        "user_id": user_id,
+                        "provider_id": provider_id,
+                        "request_id": request_id,
+                        "message": response_text or "Blood request received and acknowledged"
+                    }
                 }
             
             # Run the async function synchronously
@@ -201,19 +207,17 @@ class HemaReasoningEngine:
             
         except Exception as e:
             logger.error(f"Error in query: {str(e)}", exc_info=True)
+            # ✅ CRITICAL: Always wrap response in 'output' key
             return {
-                "error": str(e),
-                "status": "failed"
+                "output": {
+                    "error": str(e),
+                    "status": "failed"
+                }
             }
 
 
 # Create the application instance for deployment
 app = HemaReasoningEngine()
 
-# Export both the app and query method
-__all__ = ['app', 'query']
-
-# Standalone query function for backward compatibility
-def query(input_data: Dict[str, Any]) -> Dict[str, Any]:
-    """Standalone query function that delegates to the app instance."""
-    return app.query(input_data)
+# Export the app
+__all__ = ['app']
