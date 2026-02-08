@@ -1,23 +1,22 @@
 """
 Root-level agent module for ADK CLI compatibility.
 
-The ADK CLI expects to find an agent at the root level.
-This module directly defines the root_agent following the official ADK pattern.
+The ADK CLI expects to find a root agent or application at the root level.
+This module exports the HemaReasoningEngineApp which provides the query() method
+required by Vertex AI Reasoning Engine.
 """
 
-from google.adk.agents import Agent
+import os
+import logging
+from reasoning_engine_app import HemaReasoningEngineApp
 
-# Define root agent directly - following official ADK quickstart pattern
-# This is a minimal agent definition for deployment compatibility
-root_agent = Agent(
-    name="hema_blood_coordinator",
-    model="gemini-2.0-flash-exp",
-    description="Blood donation coordination agent for Hema platform",
-    instruction=(
-        "You are Hema, an AI blood donation coordinator. "
-        "You help coordinate blood requests between healthcare providers and donors. "
-        "You assist with finding suitable donors, managing requests, and facilitating communication."
-    ),
-)
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Create the application instance that will be deployed
+# This provides the query() method interface required by Reasoning Engine
+root_agent = HemaReasoningEngineApp()
 
 __all__ = ['root_agent']
+
