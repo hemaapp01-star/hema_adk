@@ -22,7 +22,7 @@ LOCATION = os.environ.get("GOOGLE_CLOUD_LOCATION", "us-central1")
 
 
 # Define the Hema Blood Request Coordinator Agent
-hema_agent = Agent(
+root_agent = Agent(
     name="hema_coordinator",
     model="gemini-2.0-flash",
     description="Agent specialized in coordinating blood donation requests between healthcare providers and potential donors.",
@@ -140,5 +140,5 @@ def query(input_data: Dict[str, Any]) -> Dict[str, Any]:
         }
 
 
-__all__ = ['query', 'hema_agent']
+__all__ = ['query', 'root_agent']
 
