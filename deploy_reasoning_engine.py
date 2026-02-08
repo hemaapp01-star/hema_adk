@@ -28,12 +28,10 @@ def deploy_reasoning_engine():
     
     try:
         print(f"\n🔨 Creating new Reasoning Engine...")
-        print(f"📦 Using staging bucket: {STAGING_BUCKET}")
         
         # Create new Reasoning Engine
         agent_engine = client.agent_engines.create(
-            agent=app,
-            staging_bucket=STAGING_BUCKET
+            agent=app
         )
         
         # Extract the agent engine ID
