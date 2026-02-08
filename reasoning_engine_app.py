@@ -1,19 +1,18 @@
 """
 Reasoning Engine Application for Vertex AI Agent Engine deployment.
 
-This module provides the query interface required by Vertex AI Reasoning Engine.
-It wraps the Request Coordinator Agent to handle long-running blood request coordination.
+This module provides a query interface using the standard ADK Agent/Runner pattern.
+It wraps the query function in a simple class for deployment compatibility.
 """
 
 import os
 import logging
-import asyncio
 from typing import Dict, Any
 import firebase_admin
 from firebase_admin import credentials
 from google.adk.sessions import VertexAiSessionService
 from google.adk.runners import Runner
-from google.genai import types
+from google.adk.agents import Agent
 
 # Setup logging first
 logging.basicConfig(level=logging.INFO)
@@ -42,29 +41,50 @@ LOCATION = os.environ.get("GOOGLE_CLOUD_LOCATION", "us-central1")
 AGENT_ENGINE_ID = os.environ.get("GOOGLE_CLOUD_AGENT_ENGINE_ID", "5294582794834411520")
 
 
-class HemaReasoningEngineApp:
-    """
-    Application class for Vertex AI Reasoning Engine deployment.
+# Create a simple coordinator agent for the Reasoning Engine
+coordinator_agent = Agent(
+    name="hema_blood_coordinator",
+    model="gemini-2.0-flash",
+    description="Agent that coordinates blood donation requests between healthcare providers and donors.",
+    instruction="""
+    You are the Hema Blood Request Coordinator.
     
-    This class provides the query() method interface required by Reasoning Engine
-    and manages long-running request coordination tasks with VertexAI sessions.
+    Your role is to:
+    1. Receive blood requests from healthcare providers
+    2. Acknowledge receipt and log the request details
+    3. Coordinate with the request coordinator to find suitable donors
+    
+    When you receive a blood request, extract and confirm:
+    - Provider ID
+    - Request ID  
+    - Blood group requirements
+    - Quantity needed
+    - Urgency level
+    - Location/address
+    
+    Acknowledge the request professionally and confirm that coordination has begun.
+    """
+)
+
+
+class HemaReasoningEngine:
+    """
+    Simple wrapper class for Vertex AI Reasoning Engine deployment.
+    
+    This class wraps the query logic to make it compatible with the
+    Reasoning Engine deployment requirements.
     """
     
     def __init__(self):
-        """Initialize the Reasoning Engine application with VertexAI session service."""
-        # Initialize VertexAI Session Service
-        self.session_service = VertexAiSessionService(
-            PROJECT_ID,
-            LOCATION,
-            AGENT_ENGINE_ID
-        )
-        self.active_coordinators: Dict[str, Any] = {}
-        logger.info(f"Initialized Hema Reasoning Engine App with VertexAI sessions")
-        logger.info(f"Project: {PROJECT_ID}, Location: {LOCATION}, Engine: {AGENT_ENGINE_ID}")
+        """Initialize the Reasoning Engine."""
+        logger.info("Initializing Hema Reasoning Engine")
     
-    async def query(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+    def query(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Main query method called by Vertex AI Reasoning Engine.
+        
+        This is a synchronous method that handles blood request coordination.
+        It creates a session, runs the coordinator agent, and returns the result.
         
         Args:
             input_data: Dictionary containing:
@@ -73,7 +93,7 @@ class HemaReasoningEngineApp:
                 - request: Blood request data
                 
         Returns:
-            Dictionary with status and auto-generated session ID
+            Dictionary with status and session information
         """
         try:
             logger.info(f"Received query with input: {input_data}")
@@ -89,47 +109,95 @@ class HemaReasoningEngineApp:
                     "status": "failed"
                 }
             
-            # Create user ID (for session management)
+            # Initialize session service
+            session_service = VertexAiSessionService(
+                PROJECT_ID,
+                LOCATION,
+                AGENT_ENGINE_ID
+            )
+            
+            # Create user ID for session management
             user_id = f"provider_{provider_id}"
             app_name = "hema_blood_coordinator"
             
-            # ✅ Create session - Vertex AI auto-generates the session ID
-            logger.info(f"Creating session for user: {user_id}")
-            session = await self.session_service.create_session(
-                app_name=app_name,
-                user_id=user_id,
-                ttl="604800s"  # 7 days TTL
+            # Create a formatted message for the agent
+            blood_groups = ", ".join(request_data.get("bloodGroup", []))
+            message = f"""
+            New blood request received:
+            
+            Provider ID: {provider_id}
+            Request ID: {request_id}
+            Blood Group(s): {blood_groups}
+            Quantity: {request_data.get('quantity', 'N/A')} units
+            Urgency: {request_data.get('urgency', 'N/A')}
+            Organization: {request_data.get('organisationName', 'N/A')}
+            Required By: {request_data.get('requireBy', 'N/A')}
+            Address: {request_data.get('address', 'N/A')}
+            
+            Please acknowledge this request and confirm that coordination has begun.
+            """
+            
+            # Initialize runner with the coordinator agent
+            runner = Runner(
+                agent=coordinator_agent,
+                session_service=session_service,
+                app_name=app_name
             )
             
-            # ✅ The session ID is auto-generated by Vertex AI
-            session_id = session.id
-            logger.info(f"Session created with ID: {session_id}")
+            # Run the agent synchronously
+            import asyncio
             
-            # Store request metadata in session state
-            await self.session_service.update_session(
-                app_name=app_name,
-                user_id=user_id,
-                session_id=session_id,
-                state={
+            async def run_agent():
+                # Create session
+                session = await session_service.create_session(
+                    app_name=app_name,
+                    user_id=user_id,
+                    ttl="604800s"  # 7 days
+                )
+                
+                session_id = session.id
+                logger.info(f"Created session {session_id} for user {user_id}")
+                
+                # Store request metadata in session
+                await session_service.update_session(
+                    app_name=app_name,
+                    user_id=user_id,
+                    session_id=session_id,
+                    state={
+                        "provider_id": provider_id,
+                        "request_id": request_id,
+                        "status": "coordinating"
+                    }
+                )
+                
+                # Run the agent
+                response_text = ""
+                async for event in runner.run_async(
+                    user_id=user_id,
+                    session_id=session_id,
+                    new_message=message
+                ):
+                    if event.is_final_response():
+                        response_text = event.content.parts[0].text
+                        logger.info(f"Agent response: {response_text}")
+                
+                return {
+                    "status": "acknowledged",
+                    "session_id": session_id,
+                    "user_id": user_id,
                     "provider_id": provider_id,
                     "request_id": request_id,
-                    "status": "coordinating"
+                    "message": response_text or "Blood request received and acknowledged"
                 }
-            )
             
-            # Start coordination asynchronously
-            asyncio.create_task(
-                self._start_coordination(
-                    app_name, user_id, session_id, request_data
-                )
-            )
-            
-            return {
-                "status": "started",
-                "session_id": session_id,  # ✅ Return the auto-generated session ID
-                "user_id": user_id,
-                "message": "Blood request coordination started successfully"
-            }
+            # Run the async function synchronously
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                result = loop.run_until_complete(run_agent())
+                return result
+            finally:
+                loop.close()
             
         except Exception as e:
             logger.error(f"Error in query: {str(e)}", exc_info=True)
@@ -137,66 +205,15 @@ class HemaReasoningEngineApp:
                 "error": str(e),
                 "status": "failed"
             }
-    
-    async def _start_coordination(
-        self, 
-        app_name: str, 
-        user_id: str, 
-        session_id: str, 
-        request_data: Dict
-    ):
-        """
-        Start the request coordination process.
-        
-        Args:
-            app_name: Application name
-            user_id: User identifier
-            session_id: Auto-generated session ID from Vertex AI
-            request_data: Blood request data
-        """
-        try:
-            logger.info(f"Starting coordination for session {session_id}")
-            
-            # Create coordinator agent
-            coordinator = create_request_coordinator_agent(session_id, request_data)
-            
-            # Store active coordinator
-            self.active_coordinators[session_id] = coordinator
-            
-            # Run coordination (this is a long-running task)
-            await coordinator.coordinate_request()
-            
-            # Update session state on completion
-            await self.session_service.update_session(
-                app_name=app_name,
-                user_id=user_id,
-                session_id=session_id,
-                state={"status": "completed"}
-            )
-            
-            # Clean up after completion
-            if session_id in self.active_coordinators:
-                del self.active_coordinators[session_id]
-            
-            logger.info(f"Coordination completed for session {session_id}")
-            
-        except Exception as e:
-            logger.error(f"Error in coordination: {str(e)}", exc_info=True)
-            
-            # Update session state on error
-            try:
-                await self.session_service.update_session(
-                    app_name=app_name,
-                    user_id=user_id,
-                    session_id=session_id,
-                    state={"status": "failed", "error": str(e)}
-                )
-            except:
-                pass
-            
-            if session_id in self.active_coordinators:
-                del self.active_coordinators[session_id]
 
 
 # Create the application instance for deployment
-app = HemaReasoningEngineApp()
+app = HemaReasoningEngine()
+
+# Export both the app and query method
+__all__ = ['app', 'query']
+
+# Standalone query function for backward compatibility
+def query(input_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Standalone query function that delegates to the app instance."""
+    return app.query(input_data)
