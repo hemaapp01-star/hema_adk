@@ -87,7 +87,7 @@ def query(input_data: Dict[str, Any]) -> Dict[str, Any]:
         
         # Initialize runner
         runner = Runner(
-            agent=hema_agent,
+            agent=root_agent,
             session_service=session_service,
             app_name="hema_coordinator"
         )
